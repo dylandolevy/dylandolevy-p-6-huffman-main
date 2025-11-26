@@ -121,23 +121,25 @@ public class HuffProcessor {
      *   internal: 1 bit '0' then left subtree then right subtree
      */
     private HuffNode readTree(BitInputStream in) {
-        int bit = in.readBits(1);
-        if (bit == -1) {
-            throw new HuffException("Error reading tree: unexpected end of file.");
-        }
-
-        if (bit == 1) {
-            int value = in.readBits(BITS_PER_WORD);
-            if (value == -1) {
-                throw new HuffException("Error reading tree: unexpected end of file for leaf value.");
-            }
-            return new HuffNode(value, 0, null, null);
-        } else {
-            HuffNode left = readTree(in);
-            HuffNode right = readTree(in);
-            return new HuffNode(0, 0, left, right);
-        }
+    int bit = in.readBits(1);
+    if (bit == -1) {
+        throw new HuffException("Error reading tree: unexpected end of file.");
     }
+
+    if (bit == 1) {
+        // Note: read BITS_PER_WORD+1 bits for the value (to include PSEUDO_EOF)
+        int value = in.readBits(BITS_PER_WORD + 1);
+        if (value == -1) {
+            throw new HuffException("Error reading tree: unexpected end of file for leaf value.");
+        }
+        return new HuffNode(value, 0, null, null);
+    } else {
+        HuffNode left = readTree(in);
+        HuffNode right = readTree(in);
+        return new HuffNode(0, 0, left, right);
+    }
+}
+
 
     /* ----------------------
        COMPRESS
@@ -242,17 +244,18 @@ public class HuffProcessor {
 
     /** Write tree to output in preorder: leaf => 1 + 8-bit value; internal => 0 then left/right */
     private void writeTree(HuffNode root, BitOutputStream out) {
-        if (root.left == null && root.right == null) {
-            // leaf
-            out.writeBits(1, 1); // leaf marker
-            out.writeBits(BITS_PER_WORD, root.value);
-            return;
-        }
-        // internal node
-        out.writeBits(1, 0);
-        writeTree(root.left, out);
-        writeTree(root.right, out);
+    if (root.left == null && root.right == null) {
+        // leaf: write marker bit 1, then the value using BITS_PER_WORD+1 bits
+        out.writeBits(1, 1);
+        out.writeBits(BITS_PER_WORD + 1, root.value);
+        return;
     }
+    // internal node: marker 0 then left, right
+    out.writeBits(1, 0);
+    writeTree(root.left, out);
+    writeTree(root.right, out);
+}
+
 
     /** Write a 32-bit int to output (uses BITS_PER_INT) */
     private void writeInt(int val, BitOutputStream out) {

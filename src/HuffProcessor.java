@@ -67,19 +67,19 @@ public class HuffProcessor {
      */
     public void decompress(BitInputStream in, BitOutputStream out) {
 
-        // 1) read/check magic number/header
+        
         int magic = in.readBits(BITS_PER_INT);
         if (magic != HUFF_TREE) {
             throw new HuffException("Invalid header / magic number: " + magic);
         }
 
-        // 2) read the tree used for compression/decompression
+        
         HuffNode root = readTree(in);
         if (root == null) {
             throw new HuffException("Missing Huffman tree in input");
         }
 
-        // 3) read bits one at a time; traverse the tree until reaching leaves
+        
         HuffNode current = root;
         while (true) {
             int bit = in.readBits(1);
@@ -155,11 +155,11 @@ public class HuffProcessor {
      * 5) write encoded data (second pass), finishing with PSEUDO_EOF
      */
     public void compress(BitInputStream in, BitOutputStream out) {
-        // 1) Count frequencies
+        
         int[] counts = new int[ALPH_SIZE + 1]; // include pseudo-eof
         for (int i = 0; i < counts.length; i++) counts[i] = 0;
 
-        // read whole input once to build frequency table
+        
         while (true) {
             int val = in.readBits(BITS_PER_WORD);
             if (val == -1) break;
@@ -167,19 +167,19 @@ public class HuffProcessor {
         }
         counts[PSEUDO_EOF] = 1; // ensure pseudo-eof present
 
-        // 2) Build tree from counts
+        
         HuffNode root = makeTreeFromCounts(counts);
 
-        // 3) Create encodings map
+        
         String[] encodings = new String[ALPH_SIZE + 1];
         for (int i = 0; i < encodings.length; i++) encodings[i] = null;
         makeEncodings(root, "", encodings);
 
-        // 4) Write header: magic number and tree
+        
         writeInt(HUFF_TREE, out);
         writeTree(root, out);
 
-        // 5) Rewind input and write encoded data
+        
         in.reset();
         while (true) {
             int val = in.readBits(BITS_PER_WORD);
@@ -192,7 +192,7 @@ public class HuffProcessor {
                 out.writeBits(1, c == '1' ? 1 : 0);
             }
         }
-        // write PSEUDO_EOF
+        
         String eofCode = encodings[PSEUDO_EOF];
         for (char c : eofCode.toCharArray()) {
             out.writeBits(1, c == '1' ? 1 : 0);
@@ -211,7 +211,7 @@ public class HuffProcessor {
             }
         }
 
-        // combine until one tree remains
+        
         while (pq.size() > 1) {
             HuffNode left = pq.remove();
             HuffNode right = pq.remove();
@@ -219,7 +219,7 @@ public class HuffProcessor {
             pq.add(parent);
         }
 
-        // The PQ should contain exactly one tree (root)
+        
         if (pq.isEmpty()) {
             throw new HuffException("Cannot build tree from empty input");
         }
